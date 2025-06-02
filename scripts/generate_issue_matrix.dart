@@ -11,8 +11,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
-/// マークダウンファイルのYAML Front Matterで期待される型
-class FileMetadata { // String または List<String>
+final class FileMetadata {
 
   FileMetadata({required this.title, required this.labels});
 
@@ -27,7 +26,7 @@ class FileMetadata { // String または List<String>
 }
 
 /// Matrix Strategy用のデータ
-class MatrixItem {
+final class MatrixItem {
 
   MatrixItem({
     required this.title,
@@ -56,7 +55,7 @@ class MatrixItem {
 }
 
 /// YAML Front Matterを解析してメタデータを抽出
-FileMetadata? parseYamlFrontMatter(String content) {
+FileMetadata? _parseYamlFrontMatter(String content) {
   // YAML Front Matterの境界を検索
   final lines = content.split('\n');
   if (lines.isEmpty || lines[0] != '---') {
@@ -88,7 +87,7 @@ FileMetadata? parseYamlFrontMatter(String content) {
 }
 
 /// 初期化マークダウンファイルを読み取り、Matrix用データを生成
-List<MatrixItem> readInitializationFiles(String initDir) {
+List<MatrixItem> _readInitializationFiles(String initDir) {
   final items = <MatrixItem>[];
   final directory = Directory(initDir);
 
@@ -109,17 +108,19 @@ List<MatrixItem> readInitializationFiles(String initDir) {
   for (final file in files) {
     try {
       final content = file.readAsStringSync();
-      final metadata = parseYamlFrontMatter(content);
+      final metadata = _parseYamlFrontMatter(content);
 
       if (metadata == null) {
-        stderr.writeln('Warning: ${file.path} has no valid YAML front matter');
-        continue;
+        stderr.writeln('Error: ${file.path} has no valid YAML front matter');
+        stderr.writeln('''All markdown files must have YAML front matter with title and labels''');
+        exit(1);
       }
 
       // title と labels が必須
       if (metadata.title.isEmpty || metadata.labels == null) {
-        stderr.writeln('''Warning: ${file.path} is missing required metadata (title or labels)''');
-        continue;
+        stderr.writeln('''Error: ${file.path} is missing required metadata (title or labels)''');
+        stderr.writeln('''Required fields: title (String), labels (String or List<String>)''');
+        exit(1);
       }
 
       final fileName = file.path.split('/').last;
@@ -132,7 +133,7 @@ List<MatrixItem> readInitializationFiles(String initDir) {
       ),);
     } on FileSystemException catch (e) {
       stderr.writeln('Error processing ${file.path}: $e');
-      continue;
+      exit(1);
     }
   }
 
@@ -140,7 +141,7 @@ List<MatrixItem> readInitializationFiles(String initDir) {
 }
 
 /// Matrix JSONを生成
-Map<String, dynamic> generateMatrix(List<MatrixItem> items) {
+Map<String, dynamic> _generateMatrix(List<MatrixItem> items) {
   return {
     'include': items.map((item) => item.toJson()).toList(),
   };
@@ -150,7 +151,7 @@ void main() {
   const initDir = '.github/initialization';
 
   // 初期化ファイルを読み取り
-  final items = readInitializationFiles(initDir);
+  final items = _readInitializationFiles(initDir);
 
   if (items.isEmpty) {
     stderr.writeln('No valid initialization files found');
@@ -158,7 +159,7 @@ void main() {
   }
 
   // Matrix JSONを生成
-  final matrix = generateMatrix(items);
+  final matrix = _generateMatrix(items);
 
   // DOC: 確認用
   // ignore: avoid_print
