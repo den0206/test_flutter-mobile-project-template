@@ -39,10 +39,18 @@ class MatrixItem {
   final dynamic labels;
 
   Map<String, dynamic> toJson() {
+    // labelsが配列の場合は改行区切りの文字列に変換
+    String labelsString;
+    if (labels is List) {
+      labelsString = (labels as List).join('\n');
+    } else {
+      labelsString = labels.toString();
+    }
+
     return {
       'title': title,
       'content-filepath': contentFilepath,
-      'labels': labels,
+      'labels': labelsString,
     };
   }
 }
